@@ -26,6 +26,7 @@ from oslo_concurrency import processutils
 from ironic_python_agent import errors
 from ironic_python_agent.extensions import base
 from ironic_python_agent import hardware
+from ironic_python_agent.openstack.common.ironic_lib import disk_utils
 from ironic_python_agent.openstack.common import log
 from ironic_python_agent import utils
 
@@ -51,16 +52,42 @@ def _write_image(image_info, device):
     starttime = time.time()
     image = _image_location(image_info)
 
-    script = _path_to_script('shell/write_image.sh')
-    command = ['/bin/bash', script, image, device]
-    LOG.info('Writing image with command: {0}'.format(' '.join(command)))
-    try:
-        stdout, stderr = utils.execute(*command, check_exit_code=[0])
-    except processutils.ProcessExecutionError as e:
-        raise errors.ImageWriteError(device, e.exit_code, e.stdout, e.stderr)
-    totaltime = time.time() - starttime
-    LOG.info('Image {0} written to device {1} in {2} seconds'.format(
-             image, device, totaltime))
+    if image_info.get('image_type') == 'partition':
+        #Call disk_util to create partion and write the partiton image
+        root_mb = image_info['root_mb']
+        swap_mb = image_info['swap_mb']
+        ephemeral_mb = image_info['ephemeral_mb']
+        ephemeral_format = image_info['ephemeral_format']
+        node_uuid = image_info['id']
+        preserve_ephemeral = image_info['preserve_ephemeral']
+        configdrive = image_info['configdrive']
+
+        image_mb = disk_utils.get_image_mb(image)
+        if image_mb > root_mb:
+            root_mb = image_mb
+        try:
+            root_uuid = disk_utils.work_on_disk(device,
+                                     root_mb, swap_mb, ephemeral_mb,
+                                     ephemeral_format, image, node_uuid,
+                                     preserve_ephemeral=preserve_ephemeral,
+                                     configdrive=configdrive)
+        except processutils.ProcessExecutionError as e:
+            raise errors.ImageWriteError(device, e.exit_code, e.stdout,
+                                         e.stderr)
+
+        return root_uuid
+    else:
+        script = _path_to_script('shell/write_image.sh')
+        command = ['/bin/bash', script, image, device]
+        LOG.info('Writing image with command: {0}'.format(' '.join(command)))
+        try:
+            stdout, stderr = utils.execute(*command, check_exit_code=[0])
+        except processutils.ProcessExecutionError as e:
+            raise errors.ImageWriteError(device, e.exit_code, e.stdout,
+                                         e.stderr)
+        totaltime = time.time() - starttime
+        LOG.info('Image {0} written to device {1} in {2} seconds'.format(
+                 image, device, totaltime))
 
 
 def _configdrive_is_url(configdrive):
@@ -210,15 +237,15 @@ class StandbyExtension(base.BaseAgentExtension):
     def cache_image(self, image_info=None, force=False):
         device = hardware.dispatch_to_managers('get_os_install_device')
 
-        result_msg = 'image ({0}) already present on device {1}'
-
+        result_msg = 'image ({0}) already present on device {1} root_uuid={2}'
+        write_result = None
         if self.cached_image_id != image_info['id'] or force:
             _download_image(image_info)
-            _write_image(image_info, device)
+            write_result = _write_image(image_info, device)
             self.cached_image_id = image_info['id']
-            result_msg = 'image ({0}) cached to device {1}'
+            result_msg = 'image ({0}) cached to device {1} root_uuid={2}'
 
-        return result_msg.format(image_info['id'], device)
+        return result_msg.format(image_info['id'], device, write_result)
 
     @base.async_command('prepare_image', _validate_image_info)
     def prepare_image(self,
@@ -227,16 +254,17 @@ class StandbyExtension(base.BaseAgentExtension):
         device = hardware.dispatch_to_managers('get_os_install_device')
 
         # don't write image again if already cached
+        write_result = None
         if self.cached_image_id != image_info['id']:
             _download_image(image_info)
-            _write_image(image_info, device)
+            write_result = _write_image(image_info, device)
             self.cached_image_id = image_info['id']
 
         if configdrive is not None:
             _write_configdrive_to_partition(configdrive, device)
 
-        return 'image ({0}) written to device {1}'.format(image_info['id'],
-                                                          device)
+        return 'image ({0}) written to device {1} root_uuid={2}'.format(
+                   image_info['id'], device, write_result)
 
     @base.async_command('run_image')
     def run_image(self):

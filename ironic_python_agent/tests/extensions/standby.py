@@ -292,7 +292,8 @@ class TestStandbyExtension(test_base.BaseTestCase):
         self.assertEqual('SUCCEEDED', async_result.command_status)
         self.assertTrue('result' in async_result.command_result.keys())
         cmd_result = ('cache_image: image ({0}) cached to device {1}'
-                      ).format(image_info['id'], 'manager')
+                      ' root_uuid={2}').format(image_info['id'],
+                                               'manager', None)
         self.assertEqual(cmd_result, async_result.command_result['result'])
 
     @mock.patch('ironic_python_agent.hardware.dispatch_to_managers',
@@ -320,7 +321,8 @@ class TestStandbyExtension(test_base.BaseTestCase):
         self.assertEqual('SUCCEEDED', async_result.command_status)
         self.assertTrue('result' in async_result.command_result.keys())
         cmd_result = ('cache_image: image ({0}) cached to device {1}'
-                      ).format(image_info['id'], 'manager')
+                      ' root_uuid={2}').format(image_info['id'],
+                                               'manager', None)
         self.assertEqual(cmd_result, async_result.command_result['result'])
 
     @mock.patch('ironic_python_agent.hardware.dispatch_to_managers',
@@ -346,7 +348,8 @@ class TestStandbyExtension(test_base.BaseTestCase):
         self.assertEqual('SUCCEEDED', async_result.command_status)
         self.assertTrue('result' in async_result.command_result.keys())
         cmd_result = ('cache_image: image ({0}) already present on device {1}'
-                      ).format(image_info['id'], 'manager')
+                      ' root_uuid={2}').format(image_info['id'],
+                                               'manager', None)
         self.assertEqual(cmd_result, async_result.command_result['result'])
 
     @mock.patch(('ironic_python_agent.extensions.standby.'
@@ -388,7 +391,8 @@ class TestStandbyExtension(test_base.BaseTestCase):
         self.assertEqual('SUCCEEDED', async_result.command_status)
         self.assertTrue('result' in async_result.command_result.keys())
         cmd_result = ('prepare_image: image ({0}) written to device {1}'
-                      ).format(image_info['id'], 'manager')
+                      ' root_uuid={2}').format(image_info['id'],
+                                               'manager', None)
         self.assertEqual(cmd_result, async_result.command_result['result'])
 
         download_mock.reset_mock()
@@ -409,7 +413,8 @@ class TestStandbyExtension(test_base.BaseTestCase):
         self.assertEqual('SUCCEEDED', async_result.command_status)
         self.assertTrue('result' in async_result.command_result.keys())
         cmd_result = ('prepare_image: image ({0}) written to device {1}'
-                      ).format(image_info['id'], 'manager')
+                      ' root_uuid={2}').format(image_info['id'],
+                                               'manager', None)
         self.assertEqual(cmd_result, async_result.command_result['result'])
 
     @mock.patch(('ironic_python_agent.extensions.standby.'
@@ -446,7 +451,8 @@ class TestStandbyExtension(test_base.BaseTestCase):
         self.assertEqual('SUCCEEDED', async_result.command_status)
         self.assertTrue('result' in async_result.command_result.keys())
         cmd_result = ('prepare_image: image ({0}) written to device {1}'
-                      ).format(image_info['id'], 'manager')
+                      ' root_uuid={2}').format(image_info['id'],
+                                               'manager', None)
         self.assertEqual(cmd_result, async_result.command_result['result'])
 
     @mock.patch('ironic_python_agent.utils.execute', autospec=True)
